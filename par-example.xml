@@ -1,13 +1,30 @@
 <?xml version="1.0"?>
 <grid>
-  <wilsonflow>
-    <N>800</N>
-    <eps>0.01</eps>
+  <spectralflow>
+    <cfg_prefix>/replace/with/path/cfg_ckpoint</cfg_prefix>
     <cfg_start>150</cfg_start>
-    <cfg_end>0</cfg_end>
+    <cfg_end>150</cfg_end>
     <cfg_step>5</cfg_step>
-    <meas_int>10</meas_int>
-    <cfg_prefix>/home/*/cfg_ckpoint</cfg_prefix>
-  </wilsonflow>
+    <M5_start>1.0</M5_start>
+    <M5_end>3.0</M5_end>
+    <M5_step>0.1</M5_step>
+    <!-- Same Lanczos parameter names and defaults as Test_wilson_specflow.cc -->
+    <Nstop>10</Nstop>
+    <Nk>20</Nk>
+    <Np>80</Np>
+    <MaxIt>10000</MaxIt>
+    <resid>1e-5</resid>
+    <!-- Chebyshev interval is for D_W dagger D_W; tune for your spectrum. -->
+    <ChebyLow>0.5</ChebyLow>
+    <ChebyHigh>70.0</ChebyHigh>
+    <!-- Grid order = polynomial degree + 1 -->
+    <ChebyOrder>41</ChebyOrder>
+    <!-- x,y,z,t fermion phases; original test defaults are all periodic. -->
+    <boundary_conditions>
+      <elem>1</elem><elem>1</elem><elem>1</elem><elem>1</elem>
+    </boundary_conditions>
+    <rng_seeds>
+      <elem>5</elem><elem>6</elem><elem>7</elem><elem>8</elem>
+    </rng_seeds>
+  </spectralflow>
 </grid>
-

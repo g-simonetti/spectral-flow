@@ -1,91 +1,47 @@
 AC_PREREQ([2.63])
-AC_INIT(source_code,[v0.1],[example@test.domain],[source_code])
-AC_CANONICAL_BUILD
-AC_CANONICAL_HOST
-AC_CANONICAL_TARGET
+AC_INIT([spectral-flow], [0.1.0])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AC_CONFIG_MACRO_DIR([.buildutils/m4])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
-m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
-
-
-AC_PROG_CC
-AC_PROG_CXX
-AC_PROG_RANLIB
-AM_PROG_AR
-AC_LANG([C++])
-
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AC_ARG_WITH([grid],
-    [AS_HELP_STRING([--with-grid=<prefix>],
-    [try this for a non-standard install prefix of Grid])],
-    [PATH="$with_grid/bin$PATH_SEPARATOR$PATH"]
-    [CXXFLAGS="$CXXFLAGS -I$with_grid/include"]
-    [LDFLAGS="$LDFLAGS -L$with_grid/lib"])
-
-AC_CHECK_PROG([GRIDCONF],[grid-config],[yes])
-if test x"$GRIDCONF" != x"yes" ; then
-    AC_MSG_ERROR([grid-config not found])
-fi
-if test x"$CXX" == x ; then
-    CXX="`grid-config --cxx`"
-elif test "$CXX" != "`grid-config --cxx`" ; then
-    GRID_CXX="`grid-config --cxx`"
-    AC_MSG_WARN([CXX differs from that reported by grid-config: "$CXX" (application) vs "$GRID_CXX" (grid-config)])
-fi
-if test x"$CXXLD" == x ; then
-    CXXLD="`grid-config --cxxld`"
-elif test "$CXXLD" != "`grid-config --cxxld`" ; then
-    GRID_CXXLD="`grid-config --cxxld`"
-    AC_MSG_WARN([CXXLD differs from that reported by grid-config: "$CXXLD" (application) vs "$GRID_CXXLD" (grid-config)])
-fi
-CXXFLAGS="$CXXFLAGS `grid-config --cxxflags`"
-CXXFLAGS="$AM_CXXFLAGS $CXXFLAGS"
-
-LDFLAGS="$LDFLAGS `grid-config --ldflags`"
-LDFLAGS="$AM_LDFLAGS $LDFLAGS"
-LIBS=" -ldl -lGrid $LIBS `grid-config --libs`"
-
-AC_MSG_CHECKING([that a minimal Grid program compiles]);
-AC_LINK_IFELSE(
-	[AC_LANG_SOURCE([[
-    #include <Grid/Grid.h>
-    
-    using namespace Grid;
-    
-    int main(int argc, char *argv[])
-    {
-        Grid_init(&argc, &argv);
-        Grid_finalize();
-        
-        return 0;
-    }
-    
-    ]])],
-	[AC_MSG_RESULT([yes])],
-    [AC_MSG_RESULT([no])]
-    [AC_MSG_ERROR([impossible to compile a minimal Grid program])])
-
-source_code_CXX="$CXX"
-source_code_CXXLD="$CXXLD"
-source_code_CXXFLAGS="$CXXFLAGS"
-source_code_LDFLAGS="$LDFLAGS"
-source_code_LIBS="$LIBS"
-source_code_SHA=`git rev-parse HEAD`
-source_code_BRANCH=`git rev-parse --abbrev-ref HEAD`
-
+  [AS_HELP_STRING([--with-grid=PREFIX], [installed Grid prefix containing bin/grid-config])],
+  [PATH="$with_grid/bin$PATH_SEPARATOR$PATH"])
+AC_PATH_PROG([GRID_CONFIG], [grid-config])
+AS_IF([test -z "$GRID_CONFIG"], [AC_MSG_ERROR([grid-config not found; use --with-grid=PREFIX])])
+AS_IF([test -z "$CXX"], [CXX=`"$GRID_CONFIG" --cxx`])
+AC_PROG_CXX
+AC_LANG([C++])
+AC_ARG_VAR([CXXLD], [C++ linker command (defaults to grid-config --cxxld)])
+AS_IF([test -z "$CXXLD"], [CXXLD=`"$GRID_CONFIG" --cxxld`])
 AC_SUBST([CXXLD])
-AC_SUBST([AM_CXXFLAGS])
-AC_SUBST([AM_LDFLAGS])
-AC_SUBST([source_code_CXX])
-AC_SUBST([source_code_CXXLD])
-AC_SUBST([source_code_CXXFLAGS])
-AC_SUBST([source_code_LDFLAGS])
-AC_SUBST([source_code_LIBS])
-AC_SUBST([source_code_SHA])
-AC_SUBST([source_code_BRANCH])
-
+CXXFLAGS="$CXXFLAGS `"$GRID_CONFIG" --cxxflags`"
+LDFLAGS="$LDFLAGS `"$GRID_CONFIG" --ldflags`"
+LIBS="`"$GRID_CONFIG" --libs` $LIBS"
+AC_MSG_CHECKING([whether Grid with double-precision adjoint Wilson support links])
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+#include <Grid/Grid.h>
+int main(int argc, char **argv) {
+  Grid::Grid_init(&argc, &argv);
+  using Action = Grid::WilsonAdjFermionD;
+  auto *g = Grid::SpaceTimeGrid::makeFourDimGrid(Grid::GridDefaultLatt(),
+    Grid::GridDefaultSimd(Grid::Nd, Grid::vComplexD::Nsimd()), Grid::GridDefaultMpi());
+  auto *rb = Grid::SpaceTimeGrid::makeFourDimRedBlackGrid(g);
+  Grid::LatticeGaugeField u(g);
+  Grid::SU<Grid::Nc>::ColdConfiguration(u);
+  Grid::AdjointRepresentation adj(g);
+  adj.update_representation(u);
+  Action d(adj.U, *g, *rb, -1.0);
+  Action::FermionField in(g), out(g);
+  in = Grid::Zero();
+  d.M(in, out);
+  Grid::Grid_finalize();
+  return 0;
+}
+]])], [AC_MSG_RESULT([yes])],
+[AC_MSG_RESULT([no])
+ AC_MSG_ERROR([Cannot link adjoint Wilson Grid program; inspect config.log and ensure Grid was built with fermion representations.])])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
-

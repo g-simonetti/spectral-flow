@@ -1,5 +1,4 @@
 Makefile.in
-README.md
 aclocal.m4
 ar-lib
 autom4te.cache/
@@ -12,3 +11,12 @@ configure
 depcomp
 install-sh
 missing
+
+config.log
+config.status
+config.h
+stamp-h1
+test-driver
+*.csv
+.deps/
+.dirstamp
